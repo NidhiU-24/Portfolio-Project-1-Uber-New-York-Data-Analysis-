@@ -1,0 +1,149 @@
+1. Perform data cleaning and data pre-processing on data
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+df=pd.read_csv(r'C:\Users\asus\Desktop\project\Portfolio project\Hotel Booking/hotel_bookings.csv')
+df.head()
+df.isnull().values.any()
+df.isnull().sum()
+df.fillna(0,inplace=True)
+df.isnull().sum()
+df['meal'].value_counts()
+df['children'].unique()
+df['adults'].unique()
+df['babies'].unique()
+filter= (df['children']==0) & (df['adults']==0) & (df['babies']==0)
+df[filter]
+data= df[~filter]
+data
+
+2. Where do the guests come from and also perform spatial analysis
+
+resort=data[(data['hotel']=='Resort Hotel')&(data['is_canceled']==0)]
+city=data[(data['hotel']=='City Hotel')&(data['is_canceled']==0)]
+resort.head()
+city.head()
+import plotly.graph_objs as go
+from plotly.offline import iplot
+import plotly.express as px
+labels=resort['country'].value_counts().index
+labels
+values=resort['country'].value_counts()
+values
+trace=go.Pie(labels=labels, values=values,
+               hoverinfo='label+percent', textinfo='value'
+               )
+iplot([trace])
+country_wise_data=data[data['is_canceled']==0]['country'].value_counts().reset_index()
+country_wise_data.columns=['country','No of guests']
+country_wise_data.head()
+px.choropleth(country_wise_data,
+                    locations=country_wise_data['country'],
+                    color=country_wise_data['No of guests'], 
+                    hover_name=country_wise_data['country'], 
+                    title="Home country of guests")
+
+3. How does the price per night vary over the year?
+
+data_resort=resort[resort['is_canceled']==0]
+data_city=city[city['is_canceled']==0]
+data_city.head()
+resort_hotel=data_resort.groupby('arrival_date_month')['adr'].mean().reset_index()
+city_hotel=data_city.groupby('arrival_date_month')['adr'].mean().reset_index()
+final=resort_hotel.merge(city_hotel,on='arrival_date_month')
+final.columns=['month','price_for_resort','price_for_city_hotel']
+final.head()
+!pip install sorted-months-weekdays
+!pip install sort-dataframeby.monthorweek
+import sort_dataframeby_monthorweek as sd
+final2=sd.Sort_Dataframeby_Month(final,'month')
+final2.head()
+px.line(final2,
+       x='month',
+       y=['price_for_resort','price_for_city_hotel'],
+       title='Room price per night over the year')
+
+4. Distribution of night spentat hotels by market segment and hote type .Analysing preference of guests(room type)
+
+plt.figure(figsize=(12,8))
+sns.boxplot(x='market_segment',y='stays_in_weekend_nights', data=data, hue='hotel')
+data['meal'].value_counts()
+px.pie(data,values=data['meal'].value_counts(),names=data['meal'].value_counts().index, hole=0.5)
+
+5. Analyse special request made by customers and Analysing relationship between special requests and cancellation
+
+sns.countplot(data['total_of_special_requests'])
+pivot=data.groupby(['total_of_special_requests','is_canceled']).agg({'total_of_special_requests':'count'}).rename(columns={'total_of_special_requests':'count'}).unstack()
+pivot
+pivot.plot(kind='bar')
+
+6. Analysing most busy month
+
+data_resort['arrival_date_month'].value_counts()
+rush_resort = data_resort['arrival_date_month'].value_counts().reset_index()
+rush_resort.columns=['month','no of guests']
+rush_resort
+rush_city = data_city['arrival_date_month'].value_counts().reset_index()
+rush_city.columns=['month','no of guests']
+rush_city
+final_rush=rush_resort.merge(rush_city,on='month')
+final_rush
+final_rush.columns=['month','no of guests in resort','no of guests in city hotel']
+final_rush
+final_rush2=sd.Sort_Dataframeby_Month(df=final_rush,monthcolumnname='month')
+final_rush2
+px.line(data_frame=final_rush2,x='month',y=['no of guests in resort','no of guests in city hotel'],title='Total no of guests per month')
+
+7. How long do people stay in hotels and bookings by market segment (Analysing more about Customers)
+
+filter=data['is_canceled']==0
+clean_data=data[filter]
+clean_data.head()
+clean_data['total_nights']=clean_data['stays_in_weekend_nights'] + clean_data['stays_in_week_nights']
+stay=clean_data.groupby(['total_nights','hotel']).agg('count').reset_index()
+stay=stay.iloc[:,0:3]
+stay.head()
+stay=stay.rename(columns={'is_canceled':'number of stays'})
+plt.figure(figsize=(12,8))
+sns.barplot(x='total_nights',y='number of stays',hue='hotel', hue_order=['City Hotel','Resort Hotel'],data=stay)
+clean_data['market_segment'].value_counts()
+px.pie(clean_data,
+             values=clean_data['market_segment'].value_counts().values,
+             names=clean_data['market_segment'].value_counts().index,
+             title="Bookings per market segment")
+
+8. price per night (ADR) and person based on booking and room
+
+
+plt.figure(figsize=(20, 10))
+sns.barplot(x="market_segment",
+            y="adr",
+            hue="reserved_room_type",
+            data=clean_data)
+
+
+9. How many bookings were cancelled?
+
+cancel=data[data['is_canceled']==1]
+rh_cancelations = cancel[cancel["hotel"] == "Resort Hotel"]["is_canceled"].sum()
+ch_cancelations = cancel[cancel["hotel"] == "City Hotel"]["is_canceled"].sum()
+ch_cancelations
+rh_cancelations
+px.pie(values=[11120,33079],names=[rh_cancelations,ch_cancelations])
+
+10. Which month have the highest number of cancellations?
+
+cancellation=data[data['is_canceled']==1]
+cancellation.head()
+cancellation['hotel'].unique()
+cancel_month=data.groupby(['arrival_date_month','hotel']).agg('count').reset_index()
+cancelled=cancel_month.iloc[:,0:3]
+cancelled=cancelled.rename(columns={'is_canceled':'no of cancellations'})
+cancelled
+final=sd.Sort_Dataframeby_Month(cancelled,'arrival_date_month')
+final
+plt.figure(figsize=(12, 8))
+sns.barplot(x = "arrival_date_month", y = "no of cancellations" , hue="hotel",
+            hue_order = ["City Hotel", "Resort Hotel"], data=final)
