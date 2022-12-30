@@ -1,0 +1,92 @@
+1. What month has maximum uber pickups in new york city?
+
+uber_15['Pickup_date']=pd.to_datetime(uber_15['Pickup_date'],format = '%Y-%m-%d %H:%M:%S')
+uber_15['Pickup_date'].dtype
+uber_15['Pickup_date']
+uber_15['Pickup_date'].dt.month
+uber_15['month']=uber_15['Pickup_date'].dt.month 
+uber_15['month'].value_counts()
+uber_15['month'].value_counts().plot(kind='bar')
+
+2. Total trips for each month and each weekdays
+
+uber_15['weekday']=uber_15['Pickup_date'].dt.day_name()
+uber_15['day']=uber_15['Pickup_date'].dt.day
+uber_15['hour']=uber_15['Pickup_date'].dt.hour
+uber_15['month']=uber_15['Pickup_date'].dt.month
+uber_15['minute']=uber_15['Pickup_date'].dt.minute
+uber_15.groupby(['month','weekday']).size()
+type(uber_15.groupby(['month','weekday']).size())
+temp=uber_15.groupby(['month','weekday'], as_index=False).size()
+temp.head()
+temp['month'].unique()
+dict_month={1:'Jan', 2:'Feb', 3:'Mar', 4:'Apr', 5:'May', 6:'Jun'}
+temp['month'].map(dict_month)
+plt.figure(figsize=(12,8))
+sns.barplot(x='month',y='size',hue='weekday',data=temp)
+
+3. Find out hourly rush in New York city in all days.
+
+uber_15.groupby(['weekday','hour']).count()
+uber_15.groupby(['weekday','hour']).size()
+summary=uber_15.groupby(['weekday','hour'],as_index=False).size()
+summary
+plt.figure(figsize=(12,8))
+sns.pointplot(x='hour',y='size',hue='weekday', data=summary)
+
+4. Which base number has most number of active vehicles?
+
+uber_foil= pd.read_csv(r'C:\Users\asus\Desktop\project\Portfolio project\Uber\uber-pickups-in-new-york-city/Uber-Jan-Feb-FOIL.csv')
+uber_foil.head()
+!pip install chart_studio
+!pip install plotly
+import chart_studio.plotly as py
+import plotly.graph_objs as go
+import plotly.express as px
+from plotly.offline import download_plotlyjs, plot, iplot, init_notebook_mode
+init_notebook_mode(connected=True)
+px.box(x='dispatching_base_number',y='active_vehicles',data_frame = uber_foil)
+px.violin(x='dispatching_base_number',y='active_vehicles',data_frame = uber_foil)
+
+5. Collect entire data and make it ready for data Analysis
+
+import os
+os.listdir(r'C:\Users\asus\Desktop\project\Portfolio project\Uber\uber-pickups-in-new-york-city')
+files=os.listdir(r'C:\Users\asus\Desktop\project\Portfolio project\Uber\uber-pickups-in-new-york-city')[-7:]
+files.remove('uber-raw-data-janjune-15.csv')
+path=(r'C:\Users\asus\Desktop\project\Portfolio project\Uber\uber-pickups-in-new-york-city')
+final=pd.DataFrame()
+for file in files:
+    current_df=pd.read_csv(path+'/'+file,encoding='utf-8')
+    final=pd.concat([current_df,final])
+final.shape
+final.duplicated().sum()
+final.drop_duplicates(inplace=True)
+
+6. At what location in the New York city we are getting rush
+
+final.groupby(['Lat','Lon']).size()
+rush_uber=final.groupby(['Lat','Lon'],as_index=False).size()
+rush_uber
+!pip install folium
+import folium
+basemap=folium.Map()
+from folium.plugins import HeatMap
+HeatMap(rush_uber)
+HeatMap(rush_uber).add_to(basemap)
+basemap
+
+7.Examine rush on Hour and weekday (pair wise analysis)
+
+final['Date/Time']=pd.to_datetime(final['Date/Time'],format= '%m/%d/%Y %H:%M:%S')
+final['weekday']=final['Date/Time'].dt.day
+final['hour']=final['Date/Time'].dt.hour
+pivot=final.groupby(['weekday','hour']).size().unstack()
+pivot.style.background_gradient()
+
+8. automate function
+
+def gen_pivot_table(df,col1,col2):
+    pivot=df.groupby([col1,col2]).size().unstack()
+    return pivot.style.background_gradient()
+gen_pivot_table(final,'weekday','hour')
